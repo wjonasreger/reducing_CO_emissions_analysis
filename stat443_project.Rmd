@@ -1,0 +1,155 @@
+---
+title: "stat443_Project"
+author: "Chenfei Hu"
+date: "3/10/2021"
+output: html_document
+---
+
+```{R}
+gt <- read.csv("gt_2012.csv")
+
+
+```
+
+```{R}
+envir <- lm(gt$CO ~ gt$AT + gt$AP + gt$AH)
+plot (envir, col = "dodgerblue")
+```
+
+For single variable
+```{R}
+plot(gt$CO ~ gt$AT, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AT), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$AP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$AH, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AH), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$AFDP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AFDP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$GTEP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$GTEP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$TIT, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$TIT), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$TAT, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$TAT), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$CDP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$CDP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$TEY, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$TEY), col = "orange", lwd = 2)
+
+
+```
+
+
+```{R}
+gt <- subset(gt, gt$CO < 15)
+plot(gt$CO ~ gt$AT, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AT), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$AP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$AH, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AH), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$AFDP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$AFDP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$GTEP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$GTEP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$TIT, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$TIT), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$TAT, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$TAT), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$CDP, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$CDP), col = "orange", lwd = 2)
+
+plot(gt$CO ~ gt$TEY, col = "dodgerblue", pch = 20)
+abline(lm(gt$CO ~ gt$TEY), col = "orange", lwd = 2)
+```
+
+```{R}
+total = lm(gt$CO ~ ., data = gt)
+summary(total)
+```
+
+
+three variable
+```{R}
+posi = lm(gt$CO ~ gt$AT + gt$TEY + gt$AT, data = gt)
+summary(posi)
+plot(posi)
+```
+
+division
+```{R}
+everything <- data.frame(gt)
+mid <- subset(gt, gt$TEY > 130 & gt$TEY < 136)
+high <- subset(gt, gt$TEY > 160)
+```
+
+
+```{R}
+hyp1 = lm(mid$CO ~ mid$TEY)
+plot(hyp1)
+
+hyp2 = lm(high$CO ~ high$TEY)
+plot(hyp2)
+
+hyp3 = lm(gt$CO ~ gt$TEY)
+plot(hyp3)
+
+```
+
+
+```{R}
+library(readr)
+library(faraway)
+hyp3_1 = lm(mid$CO ~ mid$TEY + mid$CDP + mid$AFDP)
+summary(hyp3_1)
+
+
+
+hyp3_2 = lm(high$CO ~ high$TEY + high$CDP + high$AFDP)
+summary(hyp3_2)
+
+
+
+hyp3_3 = lm(everything$CO ~ everything$TEY + everything$CDP + everything$AFDP)
+summary(hyp3_3)
+
+
+```
+```{R}
+vif(hyp3_1)
+vif(hyp3_2)
+vif(hyp3_3)
+
+```
+
+```{R}
+hyp4_1 = lm(mid$CO ~ mid$TEY + mid$CDP + mid$AFDP + mid$GTEP)
+summary(hyp4_1)
+
+
+
+hyp4_2 = lm(high$CO ~ high$TEY + high$CDP + high$AFDP + high$GTEP)
+summary(hyp4_2)
+
+
+
+hyp4_3 = lm(everything$CO ~ everything$TEY + everything$CDP + everything$AFDP + everything$GTEP)
+summary(hyp4_3)
+
+```

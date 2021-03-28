@@ -15,7 +15,7 @@ library(tidyverse)
 
 ```{r}
 # read data: Gas Turbine CO and NOx Emission
-gt_2012 = read.csv('gt_2012.csv')
+gt_2012 = read.csv('gt_2012.csv', sep = ',')
 ```
 
 ```{r}

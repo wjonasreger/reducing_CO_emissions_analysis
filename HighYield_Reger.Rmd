@@ -1,0 +1,221 @@
+---
+title: 'STAT 443 Consulting Project Data Analysis - High Yield Data'
+author: "W. Jonas Reger"
+date: "03/09/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, eval=T)
+```
+
+```{r}
+# Returns size of df
+size = function(df) return(c(nrow(df), ncol(df)))
+
+# Returns rmse
+calc_rmse = function(actual, predicted){
+  rmse = sqrt(mean((actual - predicted)^2))
+  return(rmse)
+}
+
+# Model Diagnostics
+mod.diag = function(mod, title){
+  par(mfrow = c(1, 2))
+  plot(fitted(mod), resid(mod), col="#13294b", pch=20,
+     xlab = "Fitted", ylab = "Residuals", main = title)
+  abline(h = 0, col = "#e84a27", lwd = 2)
+  
+  qqnorm(resid(mod), main = title, 
+         col = "#13294b", pch=20)
+  qqline(resid(mod), col = "#e84a27", lwd = 2)
+  
+  print(bptest(mod))
+  rln = length(resid(mod))
+  if(rln > 2 & rln < 5001){
+    print(shapiro.test(resid(mod)))
+  } else {
+    print("sample size too large for shapiro.test()")
+  }
+  print("VIFs:")
+  print(vif(mod))
+  print(max(vif(mod)))
+  print(paste("Adj. R^2:", round(summary(mod)$adj.r.squared, 4)))
+}
+
+gt_bic_sel = function(df, full){
+  all_mod = summary(regsubsets(CO ~ ., data=df, nvmax=11, method='exhaustive'))
+  p = length(coef(full))
+  n = length(resid(full))
+  mod_bic = n*log(all_mod$rss/n) + log(n)*(2:p)
+  m = which.min(mod_bic)
+  all_mod$which[m,]
+}
+
+adjr2 = function(mod) return(summary(mod)$adj.r.squared)
+
+gt_vali = function(model){
+  rmse_val = calc_rmse(
+    gt_val$CO,
+    predict(update(model, data=gt_est), gt_val)
+  )
+  return(rmse_val)
+}
+
+mod.qual = function(adjr2, vali, title){
+  print(title)
+  print("Adj. R^2:")
+  print(adjr2)
+  print("Val. RMSE:")
+  print(vali)
+  print(paste("Adj. R^2 Selection:", which.max(adjr2)))
+  print(paste("Val. RMSE Selection:", which.min(vali)))
+}
+```
+
+```{r}
+# Load packages
+suppressMessages(library(tibble))
+suppressMessages(library(tidyverse))
+suppressMessages(library(caret))
+suppressMessages(library(MASS))
+suppressMessages(library(leaps))
+library(lmtest)
+library(faraway)
+```
+
+
+## Data
+
+Variables:
+
+1. `AT` - Ambient temperature (C)
+2. `AP` - Ambient pressure (mbar)
+3. `AH` - Ambient humidity (%)
+4. `AFDP` - Air filter difference pressure (mbar)
+5. `GTEP` - Gas turbine exhaust pressure (mbar)
+6. `TIT` - Turbine inlet temperature (C)
+7. `TAT` - Turbine after temperature (C)
+8. `CDP` - Compressor discharge pressure (mbar)
+9. `TEY` - Turbine energy yield (MWH)
+10. `CO` - Carbon monoxide (mg/m3)
+11. `NOX` - Nitrogen oxides (mg/m3)
+
+```{r}
+data = read.csv('gt_2012.csv', sep = ',')
+head(data)
+
+# Set seed
+set.seed(443)
+
+# gt data as tibble
+gt_data = as_tibble(data)
+
+# Filter High Yield Data
+gt = filter(gt_data, TEY >= 160)
+
+# test-train split
+gt_trn_idx = sample(nrow(gt), size = 0.8*nrow(gt))
+gt_trn = gt[gt_trn_idx, ]
+gt_tst = gt[-gt_trn_idx, ]
+
+# estimation-validation split
+gt_est_idx = sample(nrow(gt_trn), size = 0.8*nrow(gt_trn))
+gt_est = gt_trn[gt_est_idx, ]
+gt_val = gt_trn[-gt_est_idx, ]
+
+# check data
+# head(gte_trn)
+head(gt)
+size(gt)
+```
+
+```{r}
+pairs(gt, col="#13294b", main="High Yield Data Pair Plot")
+round(cor(gt), 2)
+```
+
+```{r}
+full1 = lm(CO ~ ., data = gt)
+full2 = update(full1, .~.-NOX)
+
+mod.diag(full1, "High Yield Data from Full Model")
+mod.diag(full2, "High Yield Data from Full2 Model")
+```
+
+```{r}
+fit1 = update(full1, .~.-TAT-TEY-CDP)
+mod.diag(fit1, "Fit1, High Yield Data")
+
+fit2 = update(full2, .~.-TAT-TEY-CDP)
+mod.diag(fit2, "Fit2, High Yield Data")
+
+fit1a = update(fit1, .~.+TEY)
+fit2a = update(fit2, .~.+TEY)
+```
+
+```{r}
+gt_bic_sel(gt, full1)
+gt_bic_sel(subset(gt, select=-NOX), full2)
+
+bic_mod1 = update(full1, .~.-AP-AH-AFDP-TIT-TEY-CDP)
+bic_mod1a = update(bic_mod1, .~.+TEY)
+bic_mod2 = update(full2, .~.-AT-AH-AFDP-TIT-CDP)
+```
+
+```{r}
+ar2 = c(
+  adjr2(full1),
+  adjr2(full2),
+  adjr2(fit1),
+  adjr2(fit1a),
+  adjr2(fit2),
+  adjr2(fit2a),
+  adjr2(bic_mod1),
+  adjr2(bic_mod1a),
+  adjr2(bic_mod2)
+)
+
+vali = c(
+  gt_vali(full1),
+  gt_vali(full2),
+  gt_vali(fit1),
+  gt_vali(fit1a),
+  gt_vali(fit2),
+  gt_vali(fit2a),
+  gt_vali(bic_mod1),
+  gt_vali(bic_mod1a),
+  gt_vali(bic_mod2)
+)
+
+mod.qual(ar2[1:2], vali[1:2], "High Yield Data Full Models")
+mod.qual(ar2[3:6], vali[3:6], "High Yield Data VIF Models")
+mod.qual(ar2[7:9], vali[7:9], "High Yield Data BIC Models")
+
+mod.qual(ar2, vali, "High Yield Data Models")
+
+summary(bic_mod1a)
+```
+
+```{r}
+gt_new = subset(gt, select=c(AT, GTEP, TAT, NOX, TEY, CO))
+pairs(gt_new, col="#13294b", main="High Yield Data Pair Plot")
+round(cor(gt_new), 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

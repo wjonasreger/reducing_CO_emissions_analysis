@@ -106,8 +106,10 @@ Variables:
 11. `NOX` - Nitrogen oxides (mg/m3)
 
 ```{r}
-data = read.csv('gt_2012.csv', sep = ',')
+library(tidyverse)
+data = read_csv('gt_2012.csv')
 head(data)
+data = subset(data, select = -NOX)
 
 # Set seed
 set.seed(443)
@@ -159,8 +161,6 @@ fit2a = update(fit2, .~.+TEY)
 ```
 
 ```{r}
-gt_bic_sel(gt, full1)
-gt_bic_sel(subset(gt, select=-NOX), full2)
 
 bic_mod1 = update(full1, .~.-AP-AH-AFDP-TIT-TEY-CDP)
 bic_mod1a = update(bic_mod1, .~.+TEY)
@@ -202,20 +202,158 @@ summary(bic_mod1a)
 ```
 
 ```{r}
-gt_new = subset(gt, select=c(AT, GTEP, TAT, NOX, TEY, CO))
+gt_new = subset(gt, select=c(AT, GTEP, TAT, TEY, CO))
 pairs(gt_new, col="#13294b", main="High Yield Data Pair Plot")
 round(cor(gt_new), 2)
 ```
 
 
 
+```{r}
+summary(bic_mod2)
+
+```
+
+
+JACKIE
+```{r}
+bic_mod1a = lm(CO ~ AT + GTEP + TAT + NOX + TEY, data = gt)
+summary(bic_mod1a)
+```
 
 
 
+```{r}
+library(lmtest)
+library(boot)
+#write diagnostic functions for later use 
+#Fitted VS Residual Test 
+test_FvsR = function(model){
+plot(fitted(model), resid(model), xlab = "Fitted", ylab = "Residuals", main = "Residual Plot", col = "purple")
+abline(h = 0, col = "blue")}
+#QQ plot & QQline
+test_qq = function(model){
+qqnorm(resid(model), main = "Normal Q-Q plot", col = "purple")
+qqline(resid(model), col = "blue")
+}
+#BP test 
+test_bp = function(model, alpha) {
+  p_val = bptest(model)$p.value
+  decision = ifelse(p_val < alpha,"Reject", "Fail to Reject")
+  list1 = list(bp.p_val = p_val, bp.decision = decision)
+  return(list1)
+}
+# Shapiro–Wilk test (sw test)
+test_sw = function(model, alpha) {
+  p_val = shapiro.test(resid(model))$p.value
+  decision = ifelse(p_val < alpha,"Reject", "Fail to Reject")
+  list1 = list(sw.p_val = p_val, sw.decision = decision)
+  return(list1)
+}
+#Calculate loocv_rmse
+get_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+#Calculate adr2
+get_adj_r2 = function(model) {
+  summary(model)$adj.r.squared
+}
+#Get number of parameters 
+get_num_params = function(model) {
+  length(coef(model))
+}
+```
+
+```{r}
+#Run All Test Diagnostic
+run_all_diagnostic = function(model, visual=TRUE, alpha=0.05){
+  if (visual) {
+    par(mfrow = c(1,2))
+    test_FvsR(model)
+    test_qq(model)
+  }
+  loocv_rmse = get_loocv_rmse(model)
+  adj.r.squared = get_adj_r2(model)
+  params = get_num_params(model)
+  bp = test_bp(model, alpha)
+  sw = test_sw(model, alpha)
+  data_frame = data.frame(loocv_rmse, adj.r.squared, params, bp, sw, row.names = '')
+  return(data_frame)
+}
+```
+
+```{r}
+plot(CO ~., data = gt)
+```
 
 
+```{r}
+run_all_diagnostic(bic_mod1a)
+```
+From the residual plot we can tell the errors of the model are not of constant variance.
+```{r}
+plot(bic_mod1a)
+```
+From the residual plot we can tell the errors of the model are not of constant variance.
+```{r}
+library(faraway)
+library(glmnet)
+library(MASS)
+boxcox(bic_mod1a)
+```
+
+```{r}
+bic_mod1a_1 = lm(CO^ (4/7) ~ AT + GTEP + TAT + TEY, data = gt)
+summary(bic_mod1a_1)
+```
+
+```{r}
+plot(bic_mod1a_1)
+plot(bic_mod1a)
+```
+```{r}
+run_all_diagnostic(bic_mod1a)
+run_all_diagnostic(bic_mod1a_1)
+```
+
+```{r}
+library(nlme)
+bic_mod1a_2 <- gls(CO ~ AT + GTEP + TAT  + TEY, data = gt)
+summary(bic_mod1a_2)
+```
+
+```{r}
+bic_mod1a_3 <- rlm(CO ~ AT + GTEP + TAT + NOX + TEY, data = gt)
+summary(bic_mod1a_3)
+```
+
+```{r}
+bic_mod1a_4 <- rlm(CO ^ (4/7) ~ AT + GTEP + TAT  + TEY, data = gt)
+summary(bic_mod1a_4)
+```
+
+```{r}
+plot(bic_mod1a_4)
+```
+```{r}
+plot(bic_mod1a_1)
+```
+```{r}
+anova(bic_mod1a, bic_mod1a_1)
+```
+
+```{r}
+summary(bic_mod1a_1)
+bic_mod1a_1
+gt
+```
 
 
-
-
+```{r}
+X = as.matrix(d[ , 1:12])
+Y = debt[, 13]
+cv.ridge = cv.glmnet(X,Y,alpha = 0)
+model.ridge = glmnet(X,Y, lamdba = cv.ridge$lambda.min, alpha = 0) bridge = model.ridge$beta
+bridge
+```
 

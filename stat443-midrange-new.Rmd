@@ -1,0 +1,270 @@
+---
+title: "middle_range"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(readr)
+library(faraway)
+```
+
+
+```{r}
+gt_2012 <- read_csv("~/Desktop/gt_2012.csv")
+
+```
+
+```{r}
+gt_mid <- gt_2012 %>% filter(TEY >= 130 & TEY <=136)
+gt_mid <- subset(gt_mid, select = -NOX)
+head(gt_mid)
+```
+
+```{r}
+mid1 <- lm(CO ~., data = gt_mid)
+summary(mid1)
+```
+```{r}
+pairs(gt_mid)
+round(cor(gt_mid),2)
+# AT & GTEP: 0.95
+# AT & TIT: 0.89
+# AT & CDP
+# GTEP & TIT 
+# CDP & TIT 
+# GTEP & CDP
+```
+
+
+```{r}
+vif(mid1) 
+```
+```{r}
+#Partial Correlation Coefficient between CO and AT
+mod1a <-lm(CO ~.-AT, data = gt_mid)
+mod1b <-lm(AT ~. - CO, data = gt_mid)
+cor(resid(mod1a), resid(mod1b))#Result Small, can remove the variable from the model  
+```
+```{r}
+#Partial Correlation Coefficient between CO and GTEP
+mod1c <-lm(CO ~.-GTEP, data = gt_mid)
+mod1d <-lm(GTEP ~. - CO, data = gt_mid)
+cor(resid(mod1c), resid(mod1d))#Result Small 
+```
+
+```{r}
+#Partial Correlation Coefficient between CO and CDP
+mod1e<-lm(CO ~.-CDP, data = gt_mid)
+mod1f <-lm(CDP ~. - CO, data = gt_mid)
+cor(resid(mod1f), resid(mod1e))#Result Small,can remove the variable from the model   
+```
+```{r}
+#Partial Correlation Coefficient between CO and TIT
+mod1h <-lm(CO ~.-TIT, data = gt_mid)
+mod1g <-lm(TIT ~. - CO, data = gt_mid)
+cor(resid(mod1h), resid(mod1g))#Result Small, can remove the variable from the model  
+```
+
+
+```{r}
+mid2 <- lm(CO ~. - GTEP, data = gt_mid)
+summary(mid2)
+vif(mid2)
+```
+
+
+```{r}
+anova(mid2, mid1)#mod2 is better 
+```
+
+```{r}
+mid3 <- lm(CO ~. - GTEP - AT - TIT, data = gt_mid)
+summary(mid3)
+vif(mid3)
+```
+
+```{r}
+mid4_aic_back <- step(mid1, trace = FALSE)
+summary(mid4_aic_back) #REMOVE GTEP & TEY 
+```
+
+```{r}
+anova(mid4_aic_back, mid2)#mid4_aic_back
+```
+
+```{r}
+mid5 <- lm(CO ~ AT + AP + AH + poly(AFDP,2) + poly(TIT,2) + poly(TAT,2) + poly(CDP,2),data = gt_mid)
+summary(mid5) #ambient variable may not have strong influence over CO emission 
+vif(mid5)
+```
+
+```{r}
+mid6_back_aic = step(mid5, trace = FALSE)
+summary(mid6_back_aic)
+```
+
+```{r}
+mod1 <- lm(CO~1, data = gt_mid)
+mid6_aic_both = step(
+  mod1,
+  scope = CO ~ poly(AT,2) + poly(AP,2) + poly(AH,2) + poly(AFDP, 2) + poly(TIT, 2) + 
+    poly(TAT, 2) + poly(CDP, 2),
+  direction = 'both', trace = FALSE
+)
+summary(mid6_back_aic)
+```
+
+
+```{r}
+vif(mid5) > 5
+```
+
+
+```{r}
+critval = qt(0.05/(2*nobs(mid5)), df=df.residual(mid5)-1, lower=FALSE)
+which(abs(rstudent(mid5)) > critval)
+gt_adj = gt_mid[-c(which(abs(rstudent(mid5)) > critval)[c(2,4)]),]
+```
+
+
+```{r}
+5/3097 < 0.01
+str(gt_mid)
+str(gt_adj)
+```
+```{r}
+#BEST SO FAR
+mid5_no <- lm(CO ~ AT + AP + AH + poly(AFDP,2) + poly(TIT,2) + poly(TAT,2) + poly(CDP,2),data = gt_adj)
+summary(mid5_no) #ambient variable may not have strong influence over CO emission 
+vif(mid5_no)
+```
+
+
+```{r}
+library(lmtest)
+library(boot)
+#write diagnostic functions for later use 
+#Fitted VS Residual Test 
+test_FvsR = function(model){
+plot(fitted(model), resid(model), xlab = "Fitted", ylab = "Residuals", main = "Residual Plot", col = "purple")
+abline(h = 0, col = "blue")}
+#QQ plot & QQline
+test_qq = function(model){
+qqnorm(resid(model), main = "Normal Q-Q plot", col = "purple")
+qqline(resid(model), col = "blue")
+}
+#BP test 
+test_bp = function(model, alpha) {
+  p_val = bptest(model)$p.value
+  decision = ifelse(p_val < alpha,"Reject", "Fail to Reject")
+  list1 = list(bp.p_val = p_val, bp.decision = decision)
+  return(list1)
+}
+# Shapiro–Wilk test (sw test)
+test_sw = function(model, alpha) {
+  p_val = shapiro.test(resid(model))$p.value
+  decision = ifelse(p_val < alpha,"Reject", "Fail to Reject")
+  list1 = list(sw.p_val = p_val, sw.decision = decision)
+  return(list1)
+}
+#Calculate loocv_rmse
+get_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+#Calculate adr2
+get_adj_r2 = function(model) {
+  summary(model)$adj.r.squared
+}
+#Get number of parameters 
+get_num_params = function(model) {
+  length(coef(model))
+}
+```
+
+```{r}
+#Run All Test Diagnostic
+run_all_diagnostic = function(model, visual=TRUE, alpha=0.05){
+  if (visual) {
+    par(mfrow = c(1,2))
+    test_FvsR(model)
+    test_qq(model)
+  }
+  loocv_rmse = get_loocv_rmse(model)
+  adj.r.squared = get_adj_r2(model)
+  params = get_num_params(model)
+  bp = test_bp(model, alpha)
+  sw = test_sw(model, alpha)
+  data_frame = data.frame(loocv_rmse, adj.r.squared, params, bp, sw, row.names = '')
+  return(data_frame)
+}
+```
+
+```{r}
+run_all_diagnostic(mid5)
+```
+
+```{r}
+plot(mid5)
+```
+
+```{r}
+plot(mid5_no)
+```
+```{r}
+boxcox(mid5_no)
+```
+```{r}
+mid5_no <- lm(sqrt(CO)  ~ AT + AP + AH + poly(AFDP,2) + poly(TIT,2) + poly(TAT,2) + poly(CDP,2),data = gt_adj)
+summary(mid5_no) #ambient variable may not have strong influence over CO emission 
+vif(mid5_no)
+```
+
+```{r}
+gt_adj_all = gt_mid[-c(which(abs(rstudent(mid5)) > critval)),]
+mod1 <- lm(CO~., data = gt_adj_all)
+mid1_aic_back = step(mod1, trace = FALSE)
+summary(mid1_aic_back)
+vif(mid1_aic_back)
+```
+
+```{r}
+boxcox(mid1_aic_back)
+```
+
+
+```{r}
+plot(mid1)
+```
+```{r}
+midbest1 <- lm(CO ~ AT + AP + AH + poly(AFDP,2) + poly(TIT,2) + poly(TAT,2) + poly(CDP,2),data = gt_mid)
+summary(midbest1) #ambient variable may not have strong influence over CO emission 
+vif(midbest1)
+midbest2 <-lm(CO ~. -AT-CDP-GTEP, data = gt_mid)
+summary(midbest2)
+vif(midbest2)
+```
+
+
+
+```{r}
+# Removing influential observations
+cd = cooks.distance(midbest2)
+length(cd[which(cd > 4 / length(cd))])
+midbest1a = lm(CO ~ AT + AP + AH + poly(AFDP,2) + poly(TIT,2) + poly(TAT,2) + poly(CDP,2), data = gt_mid, subset = cd <= 4 / length(cd))
+summary(midbest1a)
+vif(midbest1a)
+```
+
+```{r}
+length(cd[which(cd > 4 / length(cd))])
+84/3907
+```
+```{r}
+full = lm(CO ~ ., data = gt_mid)
+fit1 = update(full, .~.-GTEP-AT-TIT)
+j_model = lm(CO ~ poly(AP,2)+poly(AH,2) + poly(AFDP,2)+poly(TAT,2)+poly(TIT,2) + poly(TEY,2), data= gt_adj)
+summary(j_model)
+```
+

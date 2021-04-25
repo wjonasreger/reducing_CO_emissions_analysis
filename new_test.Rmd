@@ -146,7 +146,7 @@ nrow(high)
 valueNOP  <- lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = high)
 summary(valueNOP)
 vif(valueNOP)
-valueNOP2  <- lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
+valueNOP2  <- lm(CO ~ sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
 summary(valueNOP2)
 vif(valueNOP2)
 ```

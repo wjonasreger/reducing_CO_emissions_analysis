@@ -1,0 +1,161 @@
+---
+title: "new_test"
+author: "Chenfei Hu"
+date: "4/12/2021"
+output: html_document
+---
+```{R}
+gt <- read.csv("gt_2012.csv")
+
+```
+
+
+```{R}
+everything <- data.frame(gt)
+mid <- subset(gt, gt$TEY > 130 & gt$TEY < 136)
+high <- subset(gt, gt$TEY > 160)
+```
+
+
+```{R}
+hyp1 = lm(mid$CO ~ mid$TEY)
+plot(hyp1)
+summary(hyp1)
+
+hyp2 = lm(high$CO ~ high$TEY)
+plot(hyp2)
+summary(hyp2)
+
+hyp3 = lm(gt$CO ~ gt$TEY)
+plot(hyp3)
+summary(hyp3)
+
+```
+
+
+```{R}
+library(readr)
+library(faraway)
+hyp3_1 = lm(mid$CO ~ mid$TEY + mid$CDP + mid$AFDP)
+summary(hyp3_1)
+
+
+
+hyp3_2 = lm(high$CO ~ high$TEY + high$CDP + high$AFDP)
+summary(hyp3_2)
+
+
+
+hyp3_3 = lm(everything$CO ~ everything$TEY + everything$CDP + everything$AFDP)
+summary(hyp3_3)
+
+
+```
+
+
+```{R}
+mid_all = lm(mid$CO ~ ., data = mid)
+summary(mid_all)
+
+```
+```{R}
+mid_after = lm(CO ~   AH + AFDP + CDP + TEY, data = mid)
+summary(mid_after)
+```
+
+```{R}
+mid_after_comp = lm(CO ~   AH  + CDP + TEY, data = mid)
+summary(mid_after_comp)
+```
+
+```{R}
+vif(mid_after)
+vif(mid_after_comp)
+```
+
+
+
+```{R}
+after <- aov(mid_after)
+comp <- aov(mid_after_comp)
+summary(after)
+summary(comp)
+
+```
+
+```{R}
+summary(mid_after_comp)
+```
+
+
+
+
+```{R}
+library(tibble)
+library(dplyr)
+data = read.csv('gt_2012.csv', sep = ',')
+gt = as_tibble(data)
+
+
+mid <- filter(gt, gt$TEY > 130 & gt$TEY < 136)
+head(gt, 10)
+fit1 = update(gt, .~.-GTEP-AT-TIT)
+critval = qt(0.05/(2*nobs(fit1)), df=df.residual(fit1)-1, lower=FALSE)
+gt_adj = gt[-c(which(abs(rstudent(fit1)) > critval)[c(2, 4)]),]
+
+
+j_model = lm(sqrt(CO) ~ poly(AP,2)+poly(AH,2) + poly(AFDP,2)+poly(TAT,2)+poly(TIT,2) + poly(TEY,2) + poly(NOX,2), data= gt_adj)
+summary(j_model)
+
+
+```
+
+
+
+```{R}
+library(tibble)
+library(dplyr)
+gt <- read.csv("gt_2012.csv")
+high <- subset(gt, gt$TEY > 160)
+
+tail(high, 10)
+all <- lm(CO ~. , data = high)
+```
+
+```{R}
+summary(all)
+vif(all)
+```
+```{R}
+fit1 <- lm(CO ~ poly(AT,2)+ poly(TAT,2)+  poly(GTEP,2)+  poly(TEY,2) + poly(NOX,2), data= high)
+
+summary(fit1)
+vif(fit1)
+critval = qt(0.05/(2*nobs(fit1)), df=df.residual(fit1)-1, lower=FALSE)
+gt_adj = high[-c(which(abs(rstudent(fit1)) > critval)[]),]
+
+```
+```{R}
+nrow(gt_adj)
+nrow(high)
+```
+
+
+
+```{R}
+valueNOP  <- lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = high)
+summary(valueNOP)
+vif(valueNOP)
+valueNOP2  <- lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
+summary(valueNOP2)
+vif(valueNOP2)
+```
+
+
+
+
+
+```{R}
+poly <- lm(sqrt(CO) ~ poly(AP,2)+poly(AH,2) + poly(AFDP,2)+poly(TAT,2)+poly(TIT,2) + poly(TEY,2) + poly(NOX,2), data= high)
+summary(poly)
+```

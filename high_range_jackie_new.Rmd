@@ -1,0 +1,192 @@
+---
+title: "high_range_jackie_new"
+output: html_document
+---
+```{r echo = FALSE, warning = FALSE}
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(tidyverse)
+library(MASS)
+library(caret)
+```
+
+```{r}
+# read data: Gas Turbine CO and NOx Emission
+gt_2012 = read.csv('gt_2012.csv', sep = ',')
+```
+
+```{r}
+gt_high <- gt_2012 %>% filter(TEY > 160)
+gt_high <- subset(gt_high, select = -NOX)
+```
+```{r}
+library(ggplot2)
+# Building histogram
+ggplot(data=gt_high, aes(gt_high$CO)) +
+  geom_histogram(aes(y =..density..), fill = "orange") +
+  geom_density()
+```
+
+```{r}
+library(psych)
+psych::describe(gt_high)
+```
+
+```{r}
+library(reshape)
+meltData <- melt(gt_high)
+p <- ggplot(meltData, aes(factor(variable), value))
+p + geom_boxplot() + facet_wrap(~variable, scale="free")
+```
+
+```{r}
+library(corrgram)
+corrgram(gt_high, order=TRUE)
+round(cor(gt_high),2)
+```
+
+
+```{r}
+mod_gt_high <- lm(CO ~., data = gt_high)
+summary(mod_gt_high)
+plot(mod_gt_high)
+```
+
+
+
+
+```{r}
+boxcox(mod_gt_high)
+```
+
+
+```{r}
+mod_gt_high_log = lm(sqrt(CO)~ ., data = gt_high)
+summary(mod_gt_high_log)
+plot(mod_gt_high_log)
+```
+
+
+
+
+
+
+
+```{r}
+library(mctest)
+omcdiag(mod_gt_high_log)#Chi-square test statistic is found to be 5897.3359 and it is highly significant thereby implying the presence of multicollinearity in the model specification.
+```
+
+```{r}
+imcdiag(mod_gt_high_log)
+```
+
+```{r}
+library(ppcor)
+dependent <- subset(gt_high, select = -CO)
+```
+
+```{r}
+pcor(dependent, method = "pearson") #AT &TEY
+```
+
+
+```{r}
+library(faraway)
+mod_gt_high_log_no <- lm(sqrt(CO) ~. - AT - TIT, data = gt_high)
+summary(mod_gt_high_log_no)
+vif(mod_gt_high_log_no)
+```
+
+
+
+
+```{r}
+critval = qt(0.05/(2*nobs(mod_gt_high_log_no)), df=df.residual(mod_gt_high_log_no)-1, lower=FALSE)
+out_ind = which(abs(rstudent(mod_gt_high_log_no)) > critval)
+out_ind
+```
+
+```{r}
+gt_adj = gt_high[-c(out_ind),]
+str(gt_high)
+str(gt_adj)
+mod_gt_high_log_1 = lm(sqrt(CO)~. - AT - TIT , data = gt_adj)
+summary(mod_gt_high_log_1)
+vif(mod_gt_high_log_1)
+```
+
+```{r}
+plot(mod_gt_high_log_1)
+```
+
+```{r}
+# Split data into train and test
+index <- createDataPartition(gt_adj$CO, p = .70, list = FALSE)
+train <- gt_adj[index, ]
+test <- gt_adj[-index, ]
+# Checking the dim of train
+dim(train)
+```
+
+
+ridge regression
+```{r}
+head(train)
+modified_train = subset(train, select = c(-AT, -TIT))
+head(modified_train)
+modified_test = subset(test,select = c(-AT, -TIT))
+head(modified_test)
+```
+
+
+```{r}
+library(glmnet)
+
+x = as.matrix(modified_train[,1:7])
+y_train = train$CO
+
+x_test = as.matrix(modified_test[, 1:7])
+y_test = test$CO
+
+lambdas <- 10^seq(2, -3, by = -.1)
+ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
+
+summary(ridge_reg)
+```
+```{r}
+cv_ridge <- cv.glmnet(x, y_train, alpha = 0, lambda = lambdas)
+optimal_lambda <- cv_ridge$lambda.min
+optimal_lambda
+```
+
+```{r}
+# Compute R^2 from true and predicted values
+eval_results <- function(true, predicted, df) {
+  SSE <- sum((predicted - true)^2)
+  SST <- sum((true - mean(true))^2)
+  R_square <- 1 - SSE / SST
+  RMSE = sqrt(SSE/nrow(df))
+
+  
+  # Model performance metrics
+data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square
+)
+  
+}
+
+# Prediction and evaluation on train data
+predictions_train <- predict(ridge_reg, s = optimal_lambda, newx = x)
+eval_results(y_train, predictions_train, train)
+
+# Prediction and evaluation on test data
+predictions_test <- predict(ridge_reg, s = optimal_lambda, newx = x_test)
+eval_results(y_test, predictions_test, test)
+```
+
+
+
+
+

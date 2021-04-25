@@ -151,13 +151,14 @@ y_test = test$CO
 
 lambdas <- 10^seq(2, -3, by = -.1)
 ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
-
 summary(ridge_reg)
 ```
+
 ```{r}
 cv_ridge <- cv.glmnet(x, y_train, alpha = 0, lambda = lambdas)
 optimal_lambda <- cv_ridge$lambda.min
 optimal_lambda
+coef(cv_ridge)
 ```
 
 ```{r}

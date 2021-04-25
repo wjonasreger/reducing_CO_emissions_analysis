@@ -764,31 +764,31 @@ dim(train)</code></pre>
 <pre><code>## [1] 412  10</code></pre>
 <p>ridge regression</p>
 <pre class="r"><code>head(train)</code></pre>
-<pre><code>##       AT     AP     AH   AFDP   GTEP    TIT    TAT    TEY    CDP      CO
-## 2 8.3514 1014.2 85.702 5.4543 33.611 1100.1 525.99 164.63 14.257 0.83749
-## 3 8.3759 1016.3 74.595 5.2920 32.602 1100.0 528.19 162.92 14.146 1.10480
-## 5 7.3361 1017.5 94.602 5.4316 32.654 1100.0 528.35 163.45 13.945 0.81361
-## 6 7.4467 1017.3 93.893 5.4257 32.981 1100.1 526.68 163.94 14.146 0.74238
-## 7 7.2602 1017.4 92.168 5.3866 32.804 1100.2 527.27 163.98 14.166 0.73813
-## 8 6.9274 1017.7 89.852 5.3836 33.262 1100.3 526.06 164.85 14.264 0.86236</code></pre>
+<pre><code>##        AT     AP     AH   AFDP   GTEP    TIT    TAT    TEY    CDP      CO
+## 3  8.3759 1016.3 74.595 5.2920 32.602 1100.0 528.19 162.92 14.146 1.10480
+## 4  7.6279 1016.5 80.032 5.3557 32.982 1100.1 527.30 164.13 14.155 0.97698
+## 6  7.4467 1017.3 93.893 5.4257 32.981 1100.1 526.68 163.94 14.146 0.74238
+## 7  7.2602 1017.4 92.168 5.3866 32.804 1100.2 527.27 163.98 14.166 0.73813
+## 8  6.9274 1017.7 89.852 5.3836 33.262 1100.3 526.06 164.85 14.264 0.86236
+## 11 7.2451 1018.9 78.570 5.2294 32.751 1099.7 527.83 163.76 14.102 0.87672</code></pre>
 <pre class="r"><code>modified_train = subset(train, select = c(-AT, -TIT))
 head(modified_train)</code></pre>
-<pre><code>##       AP     AH   AFDP   GTEP    TAT    TEY    CDP      CO
-## 2 1014.2 85.702 5.4543 33.611 525.99 164.63 14.257 0.83749
-## 3 1016.3 74.595 5.2920 32.602 528.19 162.92 14.146 1.10480
-## 5 1017.5 94.602 5.4316 32.654 528.35 163.45 13.945 0.81361
-## 6 1017.3 93.893 5.4257 32.981 526.68 163.94 14.146 0.74238
-## 7 1017.4 92.168 5.3866 32.804 527.27 163.98 14.166 0.73813
-## 8 1017.7 89.852 5.3836 33.262 526.06 164.85 14.264 0.86236</code></pre>
+<pre><code>##        AP     AH   AFDP   GTEP    TAT    TEY    CDP      CO
+## 3  1016.3 74.595 5.2920 32.602 528.19 162.92 14.146 1.10480
+## 4  1016.5 80.032 5.3557 32.982 527.30 164.13 14.155 0.97698
+## 6  1017.3 93.893 5.4257 32.981 526.68 163.94 14.146 0.74238
+## 7  1017.4 92.168 5.3866 32.804 527.27 163.98 14.166 0.73813
+## 8  1017.7 89.852 5.3836 33.262 526.06 164.85 14.264 0.86236
+## 11 1018.9 78.570 5.2294 32.751 527.83 163.76 14.102 0.87672</code></pre>
 <pre class="r"><code>modified_test = subset(test,select = c(-AT, -TIT))
 head(modified_test)</code></pre>
 <pre><code>##        AP     AH   AFDP   GTEP    TAT    TEY    CDP      CO
 ## 1  1013.6 85.529 5.4273 33.493 526.30 163.93 14.214 0.93444
-## 4  1016.5 80.032 5.3557 32.982 527.30 164.13 14.155 0.97698
+## 2  1014.2 85.702 5.4543 33.611 525.99 164.63 14.257 0.83749
+## 5  1017.5 94.602 5.4316 32.654 528.35 163.45 13.945 0.81361
 ## 9  1018.1 81.111 5.2441 33.008 527.18 164.15 14.193 0.81939
-## 12 1023.2 83.311 5.2212 32.093 528.67 160.12 13.899 1.21410
-## 19 1022.1 70.629 5.3045 32.706 527.85 162.03 14.051 1.02470
-## 21 1022.2 73.405 5.2976 32.992 527.26 163.10 14.082 0.86894</code></pre>
+## 10 1018.5 78.347 5.2597 33.284 525.76 164.68 14.288 0.92138
+## 12 1023.2 83.311 5.2212 32.093 528.67 160.12 13.899 1.21410</code></pre>
 <pre class="r"><code>library(glmnet)</code></pre>
 <pre><code>## Loading required package: Matrix</code></pre>
 <pre><code>## 
@@ -808,7 +808,6 @@ y_test = test$CO
 
 lambdas &lt;- 10^seq(2, -3, by = -.1)
 ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = &#39;gaussian&#39;, lambda = lambdas)
-
 summary(ridge_reg)</code></pre>
 <pre><code>##           Length Class     Mode   
 ## a0         51    -none-    numeric
@@ -827,6 +826,17 @@ summary(ridge_reg)</code></pre>
 optimal_lambda &lt;- cv_ridge$lambda.min
 optimal_lambda</code></pre>
 <pre><code>## [1] 0.001</code></pre>
+<pre class="r"><code>coef(cv_ridge)</code></pre>
+<pre><code>## 8 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
+##                        1
+## (Intercept) 33.459334012
+## AP          -0.005540346
+## AH          -0.002171685
+## AFDP        -0.045795394
+## GTEP        -0.114599544
+## TAT         -0.043340996
+## TEY         -0.039066884
+## CDP          0.443933841</code></pre>
 <pre class="r"><code># Compute R^2 from true and predicted values
 eval_results &lt;- function(true, predicted, df) {
   SSE &lt;- sum((predicted - true)^2)
@@ -847,12 +857,12 @@ data.frame(
 predictions_train &lt;- predict(ridge_reg, s = optimal_lambda, newx = x)
 eval_results(y_train, predictions_train, train)</code></pre>
 <pre><code>##        RMSE   Rsquare
-## 1 0.2787346 0.2279402</code></pre>
+## 1 0.2936991 0.2145182</code></pre>
 <pre class="r"><code># Prediction and evaluation on test data
 predictions_test &lt;- predict(ridge_reg, s = optimal_lambda, newx = x_test)
 eval_results(y_test, predictions_test, test)</code></pre>
 <pre><code>##        RMSE   Rsquare
-## 1 0.3126916 0.1413933</code></pre>
+## 1 0.2789134 0.1529799</code></pre>
 
 
 

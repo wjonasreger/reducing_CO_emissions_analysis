@@ -91,9 +91,18 @@ pcor(dependent, method = "pearson") #AT &TEY
 ```
 
 
+
 ```{r}
 library(faraway)
-mod_gt_high_log_no <- lm(sqrt(CO) ~. - AT - TIT, data = gt_high)
+mod_gt_high_log_try <- lm(sqrt(CO) ~.- AT - CDP - TIT, data = gt_high)
+summary(mod_gt_high_log_try)
+vif(mod_gt_high_log_try)
+```
+
+
+```{r}
+library(faraway)
+mod_gt_high_log_no <- lm(sqrt(CO) ~. - AT - TIT - CDP, data = gt_high)
 summary(mod_gt_high_log_no)
 vif(mod_gt_high_log_no)
 ```
@@ -111,7 +120,7 @@ out_ind
 gt_adj = gt_high[-c(out_ind),]
 str(gt_high)
 str(gt_adj)
-mod_gt_high_log_1 = lm(sqrt(CO)~. - AT - TIT , data = gt_adj)
+mod_gt_high_log_1 = lm(sqrt(CO)~. - AT - TIT - CDP , data = gt_adj)
 summary(mod_gt_high_log_1)
 vif(mod_gt_high_log_1)
 ```
@@ -133,9 +142,9 @@ dim(train)
 ridge regression
 ```{r}
 head(train)
-modified_train = subset(train, select = c(-AT, -TIT))
+modified_train = subset(train, select = c(-AT, -TIT, - CDP))
 head(modified_train)
-modified_test = subset(test,select = c(-AT, -TIT))
+modified_test = subset(test,select = c(-AT, -TIT, -CDP))
 head(modified_test)
 ```
 
@@ -143,11 +152,11 @@ head(modified_test)
 ```{r}
 library(glmnet)
 
-x = as.matrix(modified_train[,1:7])
-y_train = train$CO
+x = as.matrix(modified_train[,1:6])
+y_train = modified_train$CO
 
-x_test = as.matrix(modified_test[, 1:7])
-y_test = test$CO
+x_test = as.matrix(modified_test[, 1:6])
+y_test = modified_test$CO
 
 lambdas <- 10^seq(2, -3, by = -.1)
 ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
@@ -180,14 +189,111 @@ data.frame(
 
 # Prediction and evaluation on train data
 predictions_train <- predict(ridge_reg, s = optimal_lambda, newx = x)
-eval_results(y_train, predictions_train, train)
+eval_results(y_train, predictions_train, modified_train)
 
 # Prediction and evaluation on test data
 predictions_test <- predict(ridge_reg, s = optimal_lambda, newx = x_test)
-eval_results(y_test, predictions_test, test)
+eval_results(y_test, predictions_test, modified_test)
 ```
 
 
+```{r}
+#average for 3000 times
+rmse_train = rep(0, 2000)
+r2_train = rep(0, 2000)
+rmse_test = rep(0,2000)
+r2_test = rep(0,2000)
+X <- matrix(0,7, 2000)
+intercept = rep(0,2000)
+ap = rep(0,2000)
+ah = rep(0,2000)
+afdp = rep(0,2000)
+gtep = rep(0,2000)
+tat = rep(0,2000)
+tey = rep(0,2000)
+n = 2000
+```
 
+
+```{r}
+for( i in 1:n){
+  # Split data into train and test
+  index <- createDataPartition(gt_adj$CO, p = .70, list = FALSE)
+  train <- gt_adj[index, ]
+  test <- gt_adj[-index, ]
+  # Checking the dim of train
+  modified_train = subset(train, select = c(-AT, -TIT, - CDP))
+  modified_test = subset(test,select = c(-AT, -TIT, -CDP))
+
+  x = as.matrix(modified_train[,1:6])
+  y_train = modified_train$CO
+  
+  x_test = as.matrix(modified_test[, 1:6])
+  y_test = modified_test$CO
+  
+  lambdas <- 10^seq(2, -3, by = -.1)
+  ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
+  cv_ridge <- cv.glmnet(x, y_train, alpha = 0, lambda = lambdas)
+  optimal_lambda <- cv_ridge$lambda.min
+  # Prediction and evaluation on train data
+  predictions_train <- predict(ridge_reg, s = optimal_lambda, newx = x)
+  a = eval_results(y_train, predictions_train, modified_train)
+  rmse_train[i] = a$RMSE
+  r2_train[i] = a$Rsquare
+  
+  # Prediction and evaluation on test data
+  predictions_test <- predict(ridge_reg, s = optimal_lambda, newx = x_test)
+  b = eval_results(y_test, predictions_test, modified_test)
+  rmse_test[i] = b$RMSE
+  r2_test[i] = b$Rsquare
+  
+  c = coef(cv_ridge)
+  intercept[i] = c[1]
+  ap[i] = c[2]
+  ah[i] = c[3]
+  afdp[i] = c[4]
+  gtep[i] = c[5]
+  tat[i] = c[6]
+  tey[i] = c[7]
+}
+  
+```
+
+```{r}
+rmse_train_mean = mean(rmse_train)
+r2_train_mean = mean(r2_train)
+rmse_test_mean = mean(rmse_test)
+r2_test_mean = mean(r2_test)
+intercep_mean = mean(intercept)
+ap_mean = mean(ap)
+ah_mean = mean(ah)
+afdp_mean = mean(afdp)
+gtep_mean = mean(gtep)
+tat_mean = mean(tat)
+tey_mean = mean(tey)
+```
+
+```{r}
+intercep_mean
+ap_mean 
+ah_mean 
+afdp_mean
+gtep_mean
+tat_mean 
+tey_mean 
+```
+
+```{r}
+rmse_train_mean 
+rmse_test_mean 
+r2_train_mean 
+r2_test_mean
+```
+```{r}
+variables = c("rmse_train_mean" , "rmse_test_mean", "r2_train_mean", "r2_test_mean","intercep_mean","ap_mean", "ah_mean","afdp_mean","gtep_mean","tat_mean","tey_mean")
+values = c(rmse_train_mean, rmse_test_mean, r2_train_mean, r2_test_mean,intercep_mean,ap_mean, ah_mean,afdp_mean,gtep_mean,tat_mean ,tey_mean)
+chart <- cbind.data.frame(variables,values)
+chart
+```
 
 

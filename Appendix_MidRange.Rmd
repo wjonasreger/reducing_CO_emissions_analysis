@@ -103,6 +103,7 @@ gt_bic_sel = function(df, full){
 # Final Model 1 - Shows changes in CO when changing one predictor while holding others constant.
 pred.mb = function(x, mbc, chng, i, name){
   m = 2*sd(chng)
+  print(sd(chng))
   ms = seq(mean(chng)-m, mean(chng)+m, length.out = 100)
   c=numeric(100)
   for(k in 1:100){
@@ -139,6 +140,7 @@ pred.mb = function(x, mbc, chng, i, name){
 # Final Model 2 - Shows changes in CO when changing one predictor while holding others constant.
 pred.mb2 = function(x, mbc, chng, i, name){
   m = 2*sd(chng)
+  print(sd(chng))
   ms = seq(mean(chng)-m, mean(chng)+m, length.out = 100)
   c=numeric(100)
   for(k in 1:100){
@@ -482,6 +484,16 @@ pred.mb2(xvals, jmc, gt_mid_all$TAT, 5, "TAT")
 pred.mb2(xvals, jmc, gt_mid_all$NOX, 7, "NOX")
 ```
 
+## NOx response model
+
+```{r}
+NOx.lm = lm(NOX ~ ., data = gt_mid_all)
+summary(NOx.lm)
+summary(update(NOx.lm, data=gt_adj_all))
+
+summary(update(NOx.lm, .~.-CO))
+summary(update(NOx.lm, .~.-CO, data = gt_adj_all))
+```
 
 
 

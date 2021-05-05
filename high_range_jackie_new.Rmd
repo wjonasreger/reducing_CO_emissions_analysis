@@ -296,4 +296,94 @@ chart <- cbind.data.frame(variables,values)
 chart
 ```
 
+## Predict CO
+
+```{r, eval = F}
+# Chenfei's Model
+pred.mb.c = function(x, mbc, chng, i, name){
+  m = 2*sd(chng)
+  print(sd(chng))
+  ms = seq(mean(chng)-m, mean(chng)+m, length.out = 100)
+  mbp.c = predict(object = poly(gt_adj$NOX, 2), newdata = x[5])
+  constant = mbc[1] + mbc[2]*x[1] + mbc[3]*sqrt(x[2]) + mbc[4]*x[3] + mbc[5]*x[4] + mbc[6]*mbp.c[1] + mbc[7]*mbp.c[2]
+  
+  c=numeric(100)
+  for(k in 1:100){
+    xvals = x
+    xvals[i] = ms[k]
+    mbp = predict(object = poly(gt_adj$NOX, 2), newdata = xvals[5])
+    mb = mbc[1] + mbc[2]*xvals[1] + mbc[3]*sqrt(xvals[2]) + mbc[4]*xvals[3] + mbc[5]*xvals[4] + mbc[6]*mbp[1] + mbc[7]*mbp[2]
+    c[k] = mb-constant
+  }
+  minval = ms[which.min(c)]
+  minval1se = ms[which.min(c[26:75])+25]
+  plot(ms, c, main=paste(name, "vs. CO predicted change"),
+       xlab=paste0(name, " (CO Min at ", name, " = ", round(minval, 1), ")"), 
+       ylab = paste0("CO diff (", round(max(c)-min(c), 2), ")"), 
+       sub = paste0("CO diff Min = ", round(min(c), 2), ", Min 1se = ", round(min(c[26:75]), 2)),
+       type='l', col="#13294b")
+  abline(v=minval, col="#e84a27")
+  abline(v=minval1se, col="#e84a27")
+  abline(v=mean(chng), col="dodgerblue", lty=2)
+  abline(h=0, col="dodgerblue", lty=2)
+}
+
+# lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
+
+xvals = c(mean(gt_adj$AT), mean(gt_adj$TAT), mean(gt_adj$GTEP), mean(gt_adj$TEY), mean(gt_adj$NOX))
+# Insert model here
+mbc = coef(chenfeis.model)
+
+par(mfrow=c(2,2))
+pred.mb.c(xvals, mbc, gt_adj$AT, 1, "AT")
+pred.mb.c(xvals, mbc, gt_adj$TAT, 2, "TAT")
+pred.mb.c(xvals, mbc, gt_adj$GTEP, 3, "GTEP")
+pred.mb.c(xvals, mbc, gt_adj$TEY, 4, "TEY")
+pred.mb.c(xvals, mbc, gt_adj$NOX, 5, "NOX")
+
+```
+
+```{r}
+# Jackie's Model
+pred.mb.j = function(x, mbc, chng, i, name){
+  m = 2*sd(chng)
+  print(sd(chng))
+  ms = seq(mean(chng)-m, mean(chng)+m, length.out = 100)
+  constant = mbc[1] + mbc[2]*x[1] + mbc[3]*x[2] + mbc[4]*x[3] + mbc[5]*x[4] + mbc[6]*x[5] + mbc[7]*x[6]
+  
+  c=numeric(100)
+  for(k in 1:100){
+    xvals = x
+    xvals[i] = ms[k]
+    mb = mbc[1] + mbc[2]*xvals[1] + mbc[3]*xvals[2] + mbc[4]*xvals[3] + mbc[5]*xvals[4] + mbc[6]*xvals[5] + mbc[7]*xvals[6]
+    c[k] = mb^2 - constant^2
+  }
+  minval = ms[which.min(c)]
+  minval1se = ms[which.min(c[26:75])+25]
+  plot(ms, c, main=paste(name, "vs. CO predicted change"),
+       xlab=paste0(name, " (CO Min at ", name, " = ", round(minval, 1), ")"), 
+       ylab = paste0("CO diff (", round(max(c)-min(c), 2), ")"), 
+       sub = paste0("CO diff Min = ", round(min(c), 2), ", Min 1se = ", round(min(c[26:75]), 2)),
+       type='l', col="#13294b")
+  abline(v=minval, col="#e84a27")
+  abline(v=minval1se, col="#e84a27")
+  abline(v=mean(chng), col="dodgerblue", lty=2)
+  abline(h=0, col="dodgerblue", lty=2)
+}
+
+# lm(sqrt(CO) ~ AP + AH + AFDP + GTEP + TAT + TEY, data = gt_adj)
+
+xvals = c(mean(gt_adj$AP), mean(gt_adj$AH), mean(gt_adj$AFDP), mean(gt_adj$GTEP), mean(gt_adj$TAT), mean(gt_adj$TEY))
+# Insert model here
+mbc = coef(jackies.model)
+
+par(mfrow=c(2,2))
+pred.mb.j(xvals, mbc, gt_adj$AP, 1, "AP")
+pred.mb.j(xvals, mbc, gt_adj$AH, 2, "AH")
+pred.mb.j(xvals, mbc, gt_adj$AFDP, 3, "AFDP")
+pred.mb.j(xvals, mbc, gt_adj$GTEP, 4, "GTEP")
+pred.mb.j(xvals, mbc, gt_adj$TAT, 5, "TAT")
+pred.mb.j(xvals, mbc, gt_adj$TEY, 6, "TEY")
+```
+
 

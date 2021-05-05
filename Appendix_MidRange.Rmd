@@ -3,9 +3,9 @@ title: "STAT 443 Appendix for Mid-Range Analysis"
 author: "Jackie Kang, Jonas Reger | Glosemeyer"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  pdf_document: default
   html_document:
     theme: cosmo
+  pdf_document: default
 ---
 
 # Appendix for Mid-Range Analysis
@@ -163,7 +163,7 @@ pred.mb2 = function(x, mbc, chng, i, name){
       jmc[10]*jmp[9] + jmc[11]*jmp[10] +
       jmc[12]*jmp[11] + jmc[13]*jmp[12] +
       jmc[14]*jmp[13] + jmc[15]*jmp[14]
-    c[k] = jm-1.325417
+    c[k] = jm^2 - 1.325417^2
   }
   minval = ms[which.min(c)]
   minval1se = ms[which.min(c[26:75])+25]
@@ -494,8 +494,6 @@ summary(update(NOx.lm, data=gt_adj_all))
 summary(update(NOx.lm, .~.-CO))
 summary(update(NOx.lm, .~.-CO, data = gt_adj_all))
 ```
-
-
 
 
 

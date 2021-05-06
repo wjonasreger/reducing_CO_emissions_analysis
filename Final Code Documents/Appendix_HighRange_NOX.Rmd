@@ -1,0 +1,191 @@
+---
+title: "new_test"
+author: "Chenfei Hu"
+date: "4/12/2021"
+output: html_document
+---
+```{R}
+gt <- read.csv("gt_2012.csv")
+
+```
+
+
+```{R}
+everything <- data.frame(gt)
+mid <- subset(gt, gt$TEY > 130 & gt$TEY < 136)
+high <- subset(gt, gt$TEY > 160)
+nrow(high)
+```
+
+
+```{R}
+
+hyp2 = lm(high$CO ~ high$TEY)
+plot(hyp2)
+summary(hyp2)
+
+
+```
+
+
+```{R}
+library(readr)
+library(faraway)
+
+```
+
+
+```{R}
+high_all = lm(high$CO ~ ., data = high)
+summary(high_all)
+
+```
+```{R}
+high_after = lm(CO ~   AT + GTEP + TAT + TEY + NOX, data = high)
+summary(high_after)
+```
+```{R}
+
+high_after_comp = lm(CO ~ GTEP + TAT + TEY + NOX, data = high)
+summary(high_after_comp)
+```
+
+
+```{R}
+vif(high_after)
+vif(high_after_comp)
+```
+
+
+
+```{R}
+after <- aov(high_after)
+comp <- aov(high_after_comp)
+summary(after)
+summary(comp)
+
+```
+
+```{R}
+summary(high_after_comp)
+```
+
+
+
+
+```{R}
+library(tibble)
+library(dplyr)
+data = read.csv('gt_2012.csv', sep = ',')
+gt = as_tibble(data)
+
+
+full = lm(CO ~ ., data = gt)
+fit1 = update(full, .~.-GTEP-AT-TIT)
+critval = qt(0.05/(2*nobs(fit1)), df=df.residual(fit1)-1, lower=FALSE)
+gt_adj = gt[-c(which(abs(rstudent(fit1)) > critval)[c(2, 4)]),]
+
+
+
+
+library(corrplot)
+corrplot(cor(high))
+corrplot(cor(gt_adj))
+```
+
+
+
+```{R}
+library(tibble)
+library(dplyr)
+gt <- read.csv("gt_2012.csv")
+high <- subset(gt, gt$TEY > 160)
+
+tail(high, 10)
+all <- lm(CO ~. , data = high)
+```
+
+```{R}
+summary(all)
+vif(all)
+```
+```{R}
+fitline <- lm(CO ~ poly(AT,2)+ poly(TAT,2)+  poly(GTEP,2)+  poly(TEY,2) + poly(NOX,2), data= high)
+critval = qt(0.05/(2*nobs(fitline)), df=df.residual(fitline)-1, lower=FALSE)
+gt_adj = high[-c(which(abs(rstudent(fitline)) > critval)[]),]
+
+```
+
+```{R}
+nrow(gt_adj)
+nrow(high)
+```
+
+
+
+```{R}
+valueNOP  <- lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = high)
+summary(valueNOP)
+vif(valueNOP)
+valueNOP2  <- lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
+summary(valueNOP2)
+vif(valueNOP2)
+```
+```{R}
+valueNOP3  <- lm(CO ~ AT + TAT + GTEP + TEY + NOX, data = gt_adj)
+summary(valueNOP3)
+vif(valueNOP3)
+
+valueNOP4  <- lm(CO ~ sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
+summary(valueNOP4)
+vif(valueNOP4)
+```
+
+
+
+
+
+```{R}
+poly <- lm(sqrt(CO) ~ poly(AP,2)+poly(AH,2) + poly(AFDP,2)+poly(TAT,2)+poly(TIT,2) + poly(TEY,2) + poly(NOX,2), data= high)
+summary(poly)
+```
+```{R}
+pred.mb.c = function(x, mbc, chng, i, name){
+  m = 2*sd(chng)
+  print(sd(chng))
+  ms = seq(mean(chng)-m, mean(chng)+m, length.out = 100)
+  mbp.c = predict(object = poly(gt_adj$NOX, 2), newdata = x[5])
+  constant = mbc[1] + mbc[2]*x[1] + mbc[3]*sqrt(x[2]) + mbc[4]*x[3] + mbc[5]*x[4] + mbc[6]*mbp.c[1] + mbc[7]*mbp.c[2]
+  
+  c=numeric(100)
+  for(k in 1:100){
+    xvals = x
+    xvals[i] = ms[k]
+    mbp = predict(object = poly(gt_adj$NOX, 2), newdata = xvals[5])
+    mb = mbc[1] + mbc[2]*xvals[1] + mbc[3]*sqrt(xvals[2]) + mbc[4]*xvals[3] + mbc[5]*xvals[4] + mbc[6]*mbp[1] + mbc[7]*mbp[2]
+    c[k] = mb-constant
+  }
+  minval = ms[which.min(c)]
+  minval1se = ms[which.min(c[26:75])+25]
+  plot(ms, c, main=paste(name, "vs. CO predicted change"),
+       xlab=paste0(name, " (CO Min at ", name, " = ", round(minval, 1), ")"), 
+       ylab = paste0("CO diff (", round(max(c)-min(c), 2), ")"), 
+       sub = paste0("CO diff Min = ", round(min(c), 2), ", Min 1se = ", round(min(c[26:75]), 2)),
+       type='l', col="#13294b")
+  abline(v=minval, col="#e84a27")
+  abline(v=minval1se, col="#e84a27")
+  abline(v=mean(chng), col="dodgerblue", lty=2)
+  abline(h=0, col="dodgerblue", lty=2)
+}
+# lm(CO ~ AT + sqrt(TAT) + GTEP + TEY + poly(NOX,2), data = gt_adj)
+xvals = c(mean(gt_adj$AT), mean(gt_adj$TAT), mean(gt_adj$GTEP), mean(gt_adj$TEY), mean(gt_adj$NOX))
+# Insert model here
+mbc = coef(valueNOP2)
+par(mfrow=c(2,2))
+pred.mb.c(xvals, mbc, gt_adj$AT, 1, "AT")
+pred.mb.c(xvals, mbc, gt_adj$TAT, 2, "TAT")
+pred.mb.c(xvals, mbc, gt_adj$GTEP, 3, "GTEP")
+pred.mb.c(xvals, mbc, gt_adj$TEY, 4, "TEY")
+pred.mb.c(xvals, mbc, gt_adj$NOX, 5, "NOX")
+
+```

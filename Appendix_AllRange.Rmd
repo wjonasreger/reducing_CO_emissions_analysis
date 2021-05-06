@@ -1,0 +1,306 @@
+---
+title: "Appendix_AllRange"
+author: "Subin Cho"
+date: "4/25/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r warning = FALSE}
+# packages
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(skimr)
+library(car, warn.conflicts = FALSE)
+library(corrplot)
+library(lars)
+library(MASS, warn.conflicts = FALSE)
+library(glmnet)
+library(lmtest)
+```
+
+```{r}
+# read data: Gas Turbine CO Emission
+gt_initial = read.csv("gt_2012.csv")
+```
+
+The dataset contains 7628 instances of 11 sensor measures aggregated over one hour (by means of average or sum) from a gas turbine in 2012 located in Turkey's north western region for the purpose of studying flue gas emissions, namely CO and NOx (NO + NO2).
+
+- `AT`: Ambient temperature (C)
+- `AP`: Ambient pressure (mbar) 
+- `AH`: Ambient humidity (%) 
+
+- `AFDP`: Air filter difference pressure (mbar)
+- `GTEP`: Gas turbine exhaust pressure (mbar)
+- `TIT`: Turbine inlet temperature (C)
+- `TAT`: Turbine after temperature (C)
+- `CDP`: Compressor discharge pressure (mbar)
+
+- `TEY`: Turbine energy yield (MWH)
+
+- `CO`: Carbon monoxide (mg/m3)
+- `NOX`: Nitrogen oxides (mg/m3)
+
+```{r}
+# remove NOX
+gt = subset(gt_initial, select = -NOX)
+colnames(gt)
+```
+
+```{r}
+# Check NAs
+sum(is.na(gt))
+```
+
+```{r}
+# check data
+rownames(gt) = NULL
+head(gt, n = 10)
+```
+
+```{r}
+# AT, AP, AH
+p_AT = gt %>% 
+  ggplot(aes(x = AT)) +
+  geom_histogram(binwidth = 1, color = 'dodgerblue') + 
+  theme(legend.position = "none")
+
+p_AP = gt %>% 
+  ggplot(aes(x = AP)) +
+  geom_histogram(binwidth = 1, color = 'dodgerblue') + 
+  theme(legend.position = "none")
+
+p_AH = gt %>% 
+  ggplot(aes(x = AH)) +
+  geom_histogram(binwidth = 1, color = 'dodgerblue') + 
+  theme(legend.position = "none")
+
+# AFDP, GTEP, TIT, TAT, CDP
+p_AFDP = gt %>% 
+  ggplot(aes(x = AFDP)) +
+  geom_histogram(binwidth = 0.1, color = 'darkred') + 
+  theme(legend.position = "none")
+
+p_GTEP = gt %>% 
+  ggplot(aes(x = GTEP)) +
+  geom_histogram(binwidth = 0.3, color = 'darkred') + 
+  theme(legend.position = "none")
+
+p_TIT = gt %>% 
+  ggplot(aes(x = TIT)) +
+  geom_histogram(binwidth = 1, color = 'darkred') + 
+  theme(legend.position = "none")
+
+p_TAT = gt %>% 
+  ggplot(aes(x = TAT)) +
+  geom_histogram(binwidth = 0.1, color = 'darkred') + 
+  theme(legend.position = "none")
+
+p_CDP = gt %>% 
+  ggplot(aes(x = CDP)) +
+  geom_histogram(binwidth = 0.1, color = 'darkred') + 
+  theme(legend.position = "none")
+
+# TEY
+p_TEY = gt %>% 
+  ggplot(aes(x = TEY)) +
+  geom_histogram(binwidth = 1, color = 'darkgreen') + 
+  theme(legend.position = "none")
+
+# CO
+p_CO = gt %>% 
+  ggplot(aes(x = CO)) + 
+  geom_histogram(binwidth = 1, color = 'darkorange') + 
+  theme(legend.position = "none")
+```
+
+```{r, fig.height = 15, fig.width = 15}
+gridExtra::grid.arrange(p_AT, p_AP, p_AH,
+                        p_AFDP, p_GTEP, p_TIT, p_TAT, p_CDP,
+                        p_TEY,
+                        p_CO, ncol = 3)
+```
+
+```{r}
+# EDA
+par(mfrow = c(2, 3))
+plot(CO ~ . , data = gt, cex = 0.05, col = "dodgerblue")
+```
+
+```{r}
+# null vs full model
+mod_null = lm(CO ~ 1, data = gt)
+mod_full = lm(CO ~ ., data = gt)
+anova(mod_null, mod_full)
+
+## full model is preferred
+```
+
+```{r}
+summary(mod_full)
+```
+
+```{r}
+# Removing AFDP
+coef(summary(mod_full))[, 4][which.max(coef(summary(mod_full))[, 4])]
+```
+
+```{r}
+mod_1 = lm(CO ~ . - AFDP, data = gt)
+summary(mod_1)
+which(coef(summary(mod_1))[, 4] > 0.05)
+```
+
+```{r}
+# AIC
+extractAIC(mod_1) ## AIC for the full model
+
+# BIC
+extractAIC(mod_1, k = log(nrow(gt)))
+
+# stepwise
+step(mod_1, direction = "backward", trace = 0)
+```
+
+```{r}
+# Check multicollinearity issues
+corrplot.mixed(cor(gt), lower.col = "black", number.cex = 0.7)
+round(cor(gt), 2)
+```
+
+```{r}
+vif(mod_1) # AT, GTEP, TIT, TAT, TEY, CDP are problematic
+
+# create horizontal bar chart to display each VIF value
+barplot(sort(vif(mod_1), decreasing = FALSE), 
+        main = "High Multicollinearity Issue (VIF)", 
+        horiz = TRUE, col = "lightblue", cex.names = 0.8, las = 1)
+
+# add vertical line at 5
+abline(v = 5, lwd = 3, lty = 2, col = "red")
+```
+
+# Multicolinearity
+
+## CDP vs GTEP
+```{r}
+# when GTEP removed
+mod_GTEP = lm(CO ~ . - AFDP - GTEP, data = gt)
+summary(mod_GTEP)
+vif(mod_GTEP)
+```
+
+```{r}
+# when CDP removed
+mod_2 = lm(CO ~ . - AFDP - CDP, data = gt)
+summary(mod_2)
+vif(mod_2)
+```
+We will remove CDP and keep GTEP.
+
+## TIT vs TAT
+```{r}
+# remove TAT
+mod_3 = lm(CO ~ . - AFDP - CDP - TAT, data = gt)
+summary(mod_3)
+vif(mod_3)
+```
+
+```{r}
+# remove GTEP
+mod_4 = lm(CO ~ . - AFDP - CDP - TAT - GTEP, data = gt)
+summary(mod_4)
+vif(mod_4)
+```
+
+```{r}
+par(mfrow = c(2,2))
+plot(mod_4)
+```
+
+```{r}
+# BP Test
+bptest(mod_4)
+```
+
+```{r}
+# Removing influential observations
+cd = cooks.distance(mod_4)
+#cd[which(cd > 4 / length(cd))]
+length(cd[which(cd > 4 / length(cd))])
+
+mod_4_cd = lm(CO ~ . - AFDP - CDP - TAT - GTEP, 
+              data = gt, subset = cd <= 4 / length(cd))
+
+plot(mod_4)#, which = 2)
+
+par(mfrow = c(2,2))
+plot(mod_4_cd)
+```
+
+```{r}
+# The number of influential points
+length(cd[which(cd > 4 / length(cd))])
+
+# Percentage of influential points
+length(cd[which(cd > 4 / length(cd))]) / nrow(gt) * 100
+```
+
+```{r}
+summary(mod_4_cd)
+```
+
+```{r}
+mod_4_cd_poly = lm(CO ~ poly(AT,2) + poly(AP,2) + 
+                     AH + poly(TIT,2) + poly(TEY,2),
+                data = gt, subset = cd <= 4 / length(cd))
+summary(mod_4_cd_poly)
+```
+
+```{r}
+# BOXCOX - transform data into a normal shape
+boxcox(mod_4_cd, plotit = TRUE, lambda = seq(0.4, 0.5, by = 0.01))
+lambda = 0.465
+mod_cox = lm((((CO ^ lambda) - 1) / lambda) ~ AT + poly(AP,2) + 
+               AH + poly(TIT,2) + poly(TEY,2), 
+             data = gt, 
+             subset = cd <= 4 / length(cd))
+
+par(mfrow = c(2,2))
+plot(mod_cox)
+summary(mod_cox)
+```
+
+
+```{r}
+# calculate LOOCV RMSE
+calc_loocv_rmse = function(model){
+  sqrt(mean((resid(model) / (1 - hatvalues(model)))^2))
+}
+
+calc_loocv_rmse(mod_1)
+calc_loocv_rmse(mod_2)
+calc_loocv_rmse(mod_3)
+calc_loocv_rmse(mod_4)
+calc_loocv_rmse(mod_4_cd_poly)
+calc_loocv_rmse(mod_cox)
+```
+
+```{r}
+hist(resid(mod_cox),
+     xlab   = "Residuals",
+     main   = "Histogram of Residuals",
+     col    = "darkgreen",
+     border = "black",
+     breaks = 50)
+```
+
+```{r}
+plot(mod_cox, which = 4)
+```
+
+# Final Model
+
+$$\frac{(\mathbf{CO}^\lambda - 1)}{\lambda} = \beta_0 +(\beta_1  \mathbf{AT}) + (\beta_2 \mathbf{AP} + \beta_3 \mathbf{AP}^2) + \beta_4 \mathbf{AH} +(\beta_5 \mathbf{TIT} + \beta_6 \mathbf{TIT^2}) + (\beta_7 \mathbf{TEY} + \beta_8 \mathbf{TEY^2})+ \epsilon$$
+
